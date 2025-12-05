@@ -1,0 +1,1157 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <!-- ウェブページの基本的な設定を行う部分 -->
+    <title>🎮 AIリバーシ - Pythonプログラミング体験</title>
+    <meta charset="utf-8">
+
+    <!-- PyScriptを使うために必要なファイル（CSSとJavaScript）を読み込んでいます -->
+    <!-- mini-coi-fd.js: Worker機能のためのService Worker polyfill -->
+    <script src="../mini-coi-fd.js"></script>
+    <link rel="stylesheet" href="../pyscript_libs/core.css">
+    <!-- offline属性: CDNではなくローカルファイルを使用することを指定 -->
+    <script type="module" src="../pyscript_libs/core.js"></script>
+    <!-- PyScriptオフライン設定: インタプリタのパスを明示的に指定 -->
+    <py-config type="json">
+    {
+        "interpreter": "../pyscript_libs/pyodide/pyodide.mjs"
+    }
+    </py-config>
+
+    <!-- このウェブページのデザイン（見た目）を設定する部分 -->
+    <style>
+        /* ページ全体の基本的な設定 */
+        body {
+            font-family: 'Segoe UI', 'Hiragino Sans', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        /* ヘッダー部分のデザイン */
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 10px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin: 0;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header .subtitle {
+            font-size: 1.1em;
+            opacity: 0.9;
+            margin-top: 5px;
+        }
+
+        /* メインコンテナ */
+        .game-container {
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+
+        /* リバーシの盤（ボード）のデザイン */
+        #board {
+            display: inline-grid;
+            grid-template-columns: repeat(8, 50px);
+            grid-template-rows: repeat(8, 50px);
+            border: 3px solid #2d3748;
+            border-radius: 8px;
+            overflow: hidden;
+            margin: 10px auto;
+        }
+
+        /* マス（セル）のデザイン */
+        .cell {
+            width: 50px;
+            height: 50px;
+            background-color: #22c55e;
+            border: 1px solid #166534;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .cell:hover {
+            background-color: #4ade80;
+        }
+
+        /* 石（ピース）のデザイン */
+        .piece {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            transition: transform 0.3s ease;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+        }
+
+        /* 石を置いた時のアニメーション */
+        .piece.animate {
+            animation: placeStone 0.3s ease;
+        }
+
+        @keyframes placeStone {
+            0% { transform: scale(0); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+
+        /* 黒い石のデザイン */
+        .black {
+            background: radial-gradient(circle at 30% 30%, #4a4a4a, #000);
+        }
+
+        /* 白い石のデザイン */
+        .white {
+            background: radial-gradient(circle at 30% 30%, #fff, #ccc);
+        }
+
+        /* 操作ボタンなどをまとめる部分のデザイン */
+        #controls {
+            margin: 15px 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* ボタンのデザイン */
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            font-size: 1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        /* セレクトボックスのデザイン */
+        select {
+            padding: 10px 15px;
+            border-radius: 20px;
+            border: 2px solid #667eea;
+            font-size: 1em;
+            cursor: pointer;
+        }
+
+        /* メッセージを表示する部分のデザイン */
+        #message {
+            margin-top: 15px;
+            font-size: 1.3em;
+            font-weight: bold;
+            color: #2d3748;
+            min-height: 30px;
+        }
+
+        /* スコアを表示する部分のデザイン */
+        #score {
+            margin-top: 10px;
+            font-size: 1.2em;
+            color: #4a5568;
+        }
+
+        /* 最後に石を置いたマスを強調表示するデザイン */
+        .last-move {
+            background-color: #fbbf24 !important;
+        }
+
+        /* アクションボタン群 */
+        .action-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .action-buttons .primary-row {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .action-buttons .secondary-row {
+            display: flex;
+            justify-content: center;
+        }
+
+        /* コード表示ボタン */
+        #show-code-button {
+            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+        }
+
+        /* UI作成体験ボタン */
+        #tutorial-button {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            font-size: 1.1em;
+            padding: 15px 30px;
+        }
+
+        /* コード表示エリア */
+        #code-section {
+            display: none;
+            margin-top: 20px;
+            width: 100%;
+            max-width: 800px;
+        }
+
+        #code-section.visible {
+            display: block;
+        }
+
+        .code-header {
+            background: #2d3748;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 10px 10px 0 0;
+            font-weight: bold;
+        }
+
+        .code-container {
+            background: #1a202c;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 0 0 10px 10px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.85em;
+            line-height: 1.5;
+            white-space: pre-wrap;
+        }
+
+        .code-container .comment {
+            color: #68d391;
+        }
+
+        .code-container .keyword {
+            color: #f687b3;
+        }
+
+        .code-container .string {
+            color: #fbd38d;
+        }
+
+        /* プレイヤー選択 */
+        #player-color {
+            display: flex;
+            gap: 15px;
+        }
+
+        #player-color label {
+            cursor: pointer;
+            padding: 8px 15px;
+            border-radius: 20px;
+            border: 2px solid #667eea;
+            transition: all 0.2s;
+        }
+
+        #player-color label:has(input:checked) {
+            background: #667eea;
+            color: white;
+        }
+
+        #player-color input {
+            display: none;
+        }
+
+        /* 説明文 */
+        .description {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            max-width: 500px;
+            text-align: center;
+        }
+
+        /* プログラミング体験モード */
+        #challenge-section {
+            display: none;
+            margin-top: 20px;
+            width: 100%;
+            max-width: 600px;
+            background: white;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+
+        #challenge-section.visible {
+            display: block;
+        }
+
+        .challenge-header {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: white;
+            padding: 15px 20px;
+            font-weight: bold;
+            font-size: 1.2em;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .challenge-content {
+            padding: 20px;
+        }
+
+        .challenge-description {
+            background: #fef3c7;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border-left: 4px solid #f59e0b;
+        }
+
+        .challenge-description p {
+            margin: 5px 0;
+        }
+
+        .step {
+            display: none;
+            background: #f8fafc;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 15px;
+        }
+
+        .step.active {
+            display: block;
+        }
+
+        .step-header {
+            font-weight: bold;
+            font-size: 1.1em;
+            color: #2d3748;
+            margin-bottom: 15px;
+        }
+
+        .step-content p {
+            margin: 10px 0;
+            line-height: 1.6;
+        }
+
+        .code-input-area {
+            background: #1a202c;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            margin: 15px 0;
+        }
+
+        .code-input-area pre {
+            margin: 0;
+            white-space: pre-wrap;
+        }
+
+        .code-input-area input {
+            background: #4a5568;
+            border: 2px solid #667eea;
+            color: #fbd38d;
+            padding: 5px 10px;
+            border-radius: 5px;
+            width: 60px;
+            font-size: 1em;
+            font-family: inherit;
+            text-align: center;
+        }
+
+        .code-input-area input:focus {
+            outline: none;
+            border-color: #f59e0b;
+            box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+        }
+
+        .hint {
+            color: #718096;
+            font-size: 0.9em;
+            font-style: italic;
+        }
+
+        .step-navigation {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .step-navigation button {
+            padding: 10px 20px;
+        }
+
+        .step-navigation button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        #step-indicator {
+            font-weight: bold;
+            color: #4a5568;
+        }
+
+        .eval-table-preview {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 2px;
+            background: #2d3748;
+            padding: 10px;
+            border-radius: 8px;
+            max-width: 320px;
+            margin: 0 auto;
+        }
+
+        .eval-cell {
+            background: #22c55e;
+            padding: 5px;
+            text-align: center;
+            font-size: 0.7em;
+            font-weight: bold;
+            color: white;
+            border-radius: 3px;
+        }
+
+        .eval-cell.corner {
+            background: #f59e0b;
+        }
+
+        .eval-cell.danger {
+            background: #ef4444;
+        }
+
+        #challenge-mode-button {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        }
+    </style>
+</head>
+<body>
+    <!-- ここからウェブページに表示される内容 -->
+
+    <div class="header">
+        <h1>🎮 AIリバーシ</h1>
+        <p class="subtitle">Python × AI プログラミング体験</p>
+    </div>
+
+    <div class="description">
+        💡 このゲームは<strong>Python</strong>というプログラミング言語で作られています！<br>
+        AIと対戦したり、「プログラミング体験」で自分でゲームを作ってみよう！
+    </div>
+
+    <div class="game-container">
+        <!-- ゲームの操作部分（ボタンやセレクトボックス） -->
+        <div id="controls">
+            <button id="new-game-button">🔄 新しいゲーム</button>
+            <select id="ai-level">
+                <option value="1">😊 かんたん</option>
+                <option value="2">🤔 ふつう</option>
+                <option value="3">😈 むずかしい</option>
+            </select>
+            <div id="player-color">
+                <label><input type="radio" name="player_color" value="1" checked> ⚫ 先手（黒）</label>
+                <label><input type="radio" name="player_color" value="2"> ⚪ 後手（白）</label>
+            </div>
+        </div>
+
+        <!-- リバーシの盤を表示する場所 -->
+        <div id="board"></div>
+
+        <!-- メッセージ（例：「あなたの番です」）を表示する場所 -->
+        <div id="message"></div>
+
+        <!-- スコアを表示する場所 -->
+        <div id="score"></div>
+
+        <!-- ボタン群 -->
+        <div class="action-buttons">
+            <div class="primary-row">
+                <button id="show-code-button">👀 AIのコードを見る</button>
+                <button id="challenge-mode-button">🤖 AIをカスタマイズ</button>
+            </div>
+            <div class="secondary-row">
+                <a href="tutorial/" style="text-decoration: none;">
+                    <button id="tutorial-button">🎨 UI作成体験 - HTMLとCSSでゲームを作ろう！</button>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- コード表示セクション -->
+    <div id="code-section">
+        <div class="code-header">🐍 Pythonコード - AIの思考ロジック</div>
+        <div class="code-container" id="code-display"></div>
+    </div>
+
+    <!-- プログラミング体験モード -->
+    <div id="challenge-section">
+        <div class="challenge-header">
+            <span>🎯 プログラミング体験モード</span>
+            <button id="close-challenge" style="background: #e53e3e; padding: 5px 15px; font-size: 0.9em;">✕ 閉じる</button>
+        </div>
+        <div class="challenge-content">
+            <div class="challenge-description">
+                <p>👨‍💻 <strong>ミッション：AIの強さを自分で作ろう！</strong></p>
+                <p>下の空欄に数字を入れて、AIがどのマスを重視するか決めよう。<br>
+                数字が大きいほど「そこに置きたい！」とAIが思います。</p>
+            </div>
+            
+            <div class="challenge-steps">
+                <div class="step active" data-step="1">
+                    <div class="step-header">📝 ステップ1: 角の価値を決めよう</div>
+                    <div class="step-content">
+                        <p>リバーシで一番強い場所は<strong>角（コーナー）</strong>です！<br>
+                        角を取られると絶対にひっくり返されません。</p>
+                        <div class="code-input-area">
+                            <pre># 角の価値（0〜200の数字を入れてね）
+CORNER_VALUE = <input type="number" id="corner-value" min="0" max="200" value="" placeholder="？"></pre>
+                        </div>
+                        <p class="hint">💡 ヒント: 100以上の大きな数字がおすすめ！</p>
+                    </div>
+                </div>
+                
+                <div class="step" data-step="2">
+                    <div class="step-header">📝 ステップ2: 角の隣の価値を決めよう</div>
+                    <div class="step-content">
+                        <p>角の隣に置くと、相手に角を取られやすくなります。<br>
+                        だから<strong>マイナスの数字</strong>にして避けるようにします！</p>
+                        <div class="code-input-area">
+                            <pre># 角の隣の価値（-100〜0の数字を入れてね）
+NEXT_TO_CORNER = <input type="number" id="next-corner-value" min="-100" max="0" value="" placeholder="？"></pre>
+                        </div>
+                        <p class="hint">💡 ヒント: -20〜-50くらいがおすすめ！</p>
+                    </div>
+                </div>
+                
+                <div class="step" data-step="3">
+                    <div class="step-header">📝 ステップ3: 完成したAIをテストしよう！</div>
+                    <div class="step-content">
+                        <p>入力した数字でAIの評価表ができました！</p>
+                        <div class="eval-table-preview" id="eval-preview">
+                            <!-- JavaScriptで動的に生成 -->
+                        </div>
+                        <button id="apply-custom-ai" style="margin-top: 15px;">🚀 このAIで対戦する！</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="step-navigation">
+                <button id="prev-step" disabled>◀ 前へ</button>
+                <span id="step-indicator">1 / 3</span>
+                <button id="next-step">次へ ▶</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ここからPythonのコードが始まります -->
+    <py-script>
+        # 必要なライブラリ（道具）を読み込む
+        import random  # ランダムな選択をするために使う
+        from js import document, alert  # HTMLを操作したり、アラートを表示するために使う
+        from pyodide.ffi import create_proxy  # Pythonの関数をHTMLで使えるようにするために使う
+        import asyncio # 非同期処理（待機処理）のために使う
+
+        # --- ゲームの基本的なルールや盤の状態を管理する部分 ---
+        class Board:
+            # ゲームが始まった時の初期設定
+            def __init__(self):
+                # 8x8の盤面を作る。0は空きマス、1は黒石、2は白石を表す
+                self.board = [[0] * 8 for _ in range(8)]
+                # ゲーム開始時の石の配置
+                self.board[3][3] = 1  # 黒
+                self.board[3][4] = 2  # 白
+                self.board[4][3] = 2  # 白
+                self.board[4][4] = 1  # 黒
+
+            # 石を置ける場所（有効な手）を探す
+            def get_valid_moves(self, player):
+                valid_moves = []
+                for i in range(8):
+                    for j in range(8):
+                        if self.is_valid_move(i, j, player):
+                            valid_moves.append((i, j))
+                return valid_moves
+
+            # (row, col)のマスが有効な手かどうかをチェックする
+            def is_valid_move(self, row, col, player):
+                if self.board[row][col] != 0:
+                    return False  # すでに石が置かれている場合は置けない
+                
+                opponent = 3 - player # 相手の石の色
+                # 8方向（上下左右、斜め）をチェックする
+                for dr, dc in [(0, 1), (1, 0), (0, -1), (-1, 0), (1, 1), (1, -1), (-1, 1), (-1, -1)]:
+                    r, c = row + dr, col + dc
+                    # 隣が相手の石でなければ、その方向はチェックしない
+                    if not (0 <= r < 8 and 0 <= c < 8) or self.board[r][c] != opponent:
+                        continue
+                    
+                    # 相手の石が続いているかチェック
+                    r += dr
+                    c += dc
+                    while 0 <= r < 8 and 0 <= c < 8:
+                        if self.board[r][c] == player:
+                            return True  # 自分の石で挟めたら、置ける場所
+                        if self.board[r][c] == 0:
+                            break # 空きマスがあれば挟めない
+                        r += dr
+                        c += dc
+                return False # どの方向でも挟めなければ置けない
+
+            # 実際に石を置いて、相手の石をひっくり返す
+            def make_move(self, row, col, player):
+                self.board[row][col] = player # 石を置く
+                opponent = 3 - player
+                # 8方向をチェックして、挟める石をひっくり返す
+                for dr, dc in [(0, 1), (1, 0), (0, -1), (-1, 0), (1, 1), (1, -1), (-1, 1), (-1, -1)]:
+                    r, c = row + dr, col + dc
+                    stones_to_flip = []
+                    while 0 <= r < 8 and 0 <= c < 8:
+                        if self.board[r][c] == 0:
+                            break
+                        if self.board[r][c] == player:
+                            # 挟めた石をすべて自分の色に変える
+                            for fr, fc in stones_to_flip:
+                                self.board[fr][fc] = player
+                            break
+                        stones_to_flip.append((r,c))
+                        r += dr
+                        c += dc
+            
+            # 現在のスコア（石の数）を計算する
+            def get_score(self):
+                black_score = sum(row.count(1) for row in self.board)
+                white_score = sum(row.count(2) for row in self.board)
+                return black_score, white_score
+
+        # --- AI（コンピュータ）の思考ロジックを管理する部分 ---
+        class AIPlayer:
+            EVAL_OPENING = [
+                [120, -20, 20,  5,  5, 20, -20, 120],
+                [-20, -40, -5, -5, -5, -5, -40, -20],
+                [ 20,  -5, 15,  3,  3, 15,  -5,  20],
+                [  5,  -5,  3,  3,  3,  3,  -5,   5],
+                [  5,  -5,  3,  3,  3,  3,  -5,   5],
+                [ 20,  -5, 15,  3,  3, 15,  -5,  20],
+                [-20, -40, -5, -5, -5, -5, -40, -20],
+                [120, -20, 20,  5,  5, 20, -20, 120]
+            ]
+            EVAL_MIDGAME = [
+                [ 80, -15, 15,  5,  5, 15, -15,  80],
+                [-15, -30, -5, -5, -5, -5, -30, -15],
+                [ 15,  -5, 10,  3,  3, 10,  -5,  15],
+                [  5,  -5,  3,  3,  3,  3,  -5,   5],
+                [  5,  -5,  3,  3,  3,  3,  -5,   5],
+                [ 15,  -5, 10,  3,  3, 10,  -5,  15],
+                [-15, -30, -5, -5, -5, -5, -30, -15],
+                [ 80, -15, 15,  5,  5, 15, -15,  80]
+            ]
+            EVAL_ENDGAME = [
+                [10, 8, 8, 6, 6, 8, 8, 10],
+                [ 8, 6, 4, 4, 4, 4, 6,  8],
+                [ 8, 4, 2, 2, 2, 2, 4,  8],
+                [ 6, 4, 2, 1, 1, 2, 4,  6],
+                [ 6, 4, 2, 1, 1, 2, 4,  6],
+                [ 8, 4, 2, 2, 2, 2, 4,  8],
+                [ 8, 6, 4, 4, 4, 4, 6,  8],
+                [10, 8, 8, 6, 6, 8, 8, 10]
+            ]
+
+            def __init__(self, player, level):
+                self.player = player  # AIが黒か白か
+                self.level = level    # AIの強さ（1, 2, 3）
+
+            # AIがどこに石を置くか決める
+            def get_move(self, board):
+                valid_moves = board.get_valid_moves(self.player)
+                if not valid_moves:
+                    return None # 置ける場所がなければ何もしない
+
+                # 石の総数でゲームの進行度を判断
+                total_stones = sum(row.count(1) for row in board.board) + sum(row.count(2) for row in board.board)
+
+                # --- 序盤 --- (20手目まで)
+                if total_stones <= 24: # 初期配置4 + 20手
+                    evaluation_board = self.EVAL_OPENING
+                    if self.level == 1:
+                        return self._get_worst_move_by_eval(valid_moves, evaluation_board)
+                    elif self.level == 2:
+                        return self._get_best_move_by_flips(board, valid_moves)
+                    elif self.level == 3:
+                        return self._get_best_move_by_eval(valid_moves, evaluation_board)
+
+                # --- 中盤 --- (50手目まで)
+                elif total_stones <= 54: # 初期配置4 + 50手
+                    evaluation_board = self.EVAL_MIDGAME
+                    if self.level == 1:
+                        return self._get_worst_move_by_eval(valid_moves, evaluation_board)
+                    elif self.level == 2:
+                        return self._get_best_move_by_flips(board, valid_moves)
+                    elif self.level == 3:
+                        return self._get_best_move_by_eval(valid_moves, evaluation_board)
+
+                # --- 終盤 ---
+                else:
+                    evaluation_board = self.EVAL_ENDGAME
+                    if self.level == 1:
+                        return self._get_worst_move_by_eval(valid_moves, evaluation_board)
+                    elif self.level == 2:
+                        return self._get_best_move_by_flips(board, valid_moves)
+                    elif self.level == 3:
+                        return self._get_best_move_by_eval(valid_moves, evaluation_board)
+
+            # マス評価で最善手を選ぶ
+            def _get_best_move_by_eval(self, valid_moves, evaluation_board):
+                best_move = None
+                max_score = -float('inf')
+                for move in valid_moves:
+                    r, c = move
+                    score = evaluation_board[r][c]
+                    if score > max_score:
+                        max_score = score
+                        best_move = move
+                return best_move
+
+            # マス評価で最悪手を選ぶ
+            def _get_worst_move_by_eval(self, valid_moves, evaluation_board):
+                worst_move = None
+                min_score = float('inf')
+                for move in valid_moves:
+                    r, c = move
+                    score = evaluation_board[r][c]
+                    if score < min_score:
+                        min_score = score
+                        worst_move = move
+                return worst_move
+
+            # ひっくり返す数で最善手を選ぶ
+            def _get_best_move_by_flips(self, board, valid_moves):
+                best_move = None
+                max_flips = -1
+                for move in valid_moves:
+                    flips = self._get_flips(board, move[0], move[1], self.player)
+                    if flips > max_flips:
+                        max_flips = flips
+                        best_move = move
+                return best_move
+
+            # ひっくり返す数で最悪手を選ぶ
+            def _get_worst_move_by_flips(self, board, valid_moves):
+                worst_move = None
+                min_flips = float('inf')
+                for move in valid_moves:
+                    flips = self._get_flips(board, move[0], move[1], self.player)
+                    if flips < min_flips:
+                        min_flips = flips
+                        worst_move = move
+                return worst_move
+
+            # 仮に石を置いた時に、何個ひっくり返せるか計算する
+            def _get_flips(self, board, row, col, player):
+                temp_board = Board()
+                temp_board.board = [row[:] for row in board.board]
+                initial_score = temp_board.get_score()[player-1]
+                temp_board.make_move(row, col, player)
+                new_score = temp_board.get_score()[player-1]
+                return new_score - initial_score
+
+
+        # --- ゲーム全体の進行を管理する部分 ---
+
+        game = None  # Boardクラスのインスタンス（盤の状態）を入れる変数
+        human_player = 1  # 人間が黒(1)か白(2)か
+        ai_player = 2     # AIが黒(1)か白(2)か
+        current_player = 1 # 常に黒(1)からスタート
+        last_move = None # 最後に石が置かれた場所 (r, c)
+
+        # 盤面の状態をHTMLに描画する関数
+        def draw_board():
+            board_div = document.getElementById("board") # HTMLの盤の部分を取得
+            board_div.innerHTML = "" # 一旦、盤を空にする
+            # 人間のターンの時だけ、置ける場所を計算して表示する
+            valid_moves = game.get_valid_moves(human_player) if current_player == human_player else []
+
+            # 8x8のマスを一つずつ作る
+            for r in range(8):
+                for c in range(8):
+                    cell = document.createElement("div") # マス(cell)を作る
+                    cell.className = "cell"
+
+                    # 最後に置かれたマスを強調表示
+                    if (r, c) == last_move:
+                        cell.classList.add("last-move")
+                    # 人間が置ける場所なら、マスを明るい緑色にする
+                    elif (r, c) in valid_moves:
+                        cell.style.backgroundColor = "#90ee90"
+
+                    # マスがクリックされた時に on_cell_click 関数を呼ぶように設定
+                    proxy = create_proxy(lambda event, r=r, c=c: on_cell_click(r, c))
+                    cell.addEventListener("click", proxy)
+
+                    # 石(piece)を作る
+                    piece = document.createElement("div")
+                    if game.board[r][c] == 1:
+                        piece.className = "piece black" # 黒石
+                    elif game.board[r][c] == 2:
+                        piece.className = "piece white" # 白石
+
+                    cell.appendChild(piece) # マスに石を追加
+                    board_div.appendChild(cell) # 盤にマスを追加
+
+            update_score() # スコアを更新
+
+        # スコア表示を更新する関数
+        def update_score():
+            black_score, white_score = game.get_score()
+            document.getElementById("score").innerText = f"黒: {black_score} - 白: {white_score}"
+
+        # メッセージを表示する関数
+        def set_message(msg):
+            document.getElementById("message").innerText = msg
+
+        # 盤のマスがクリックされた時に呼ばれる関数
+        def on_cell_click(row, col):
+            global current_player, last_move
+            if current_player != human_player:
+                return # 人間の番でなければ何もしない
+
+            valid_moves = game.get_valid_moves(human_player)
+            if (row, col) not in valid_moves:
+                set_message("そこには置けません。")
+                return # ルール違反の場所なら何もしない
+
+            # 人間の手を盤に反映
+            game.make_move(row, col, human_player)
+            last_move = (row, col) # 最後に置いた場所を記録
+            current_player = ai_player # AIの番にする
+            draw_board() # 盤を再描画
+            set_message("AIが考えています...")
+            
+            # 0.5秒待ってからAIの手を打つ（人間が盤面の変化を見れるように）
+            async def make_ai_move():
+                await asyncio.sleep(0.5)
+                ai_turn()
+            asyncio.ensure_future(make_ai_move())
+
+
+        # AIのターンを処理する関数
+        def ai_turn():
+            global current_player, last_move
+            
+            # AIが置ける場所があるかチェック
+            ai_valid_moves = game.get_valid_moves(ai_player)
+            if not ai_valid_moves:
+                set_message("AIはパスしました。あなたの番です。")
+                last_move = None # パスなのでハイライトなし
+                current_player = human_player
+                # 人間もパスならゲーム終了
+                if not game.get_valid_moves(human_player):
+                    end_game()
+                else:
+                    draw_board() # 人間のために置ける場所を表示
+                return
+
+            # AIのレベルを取得して、手を決めさせる
+            level = int(document.getElementById("ai-level").value)
+            ai = AIPlayer(ai_player, level)
+            move = ai.get_move(game)
+            
+            # AIの手を盤に反映
+            if move:
+                game.make_move(move[0], move[1], ai_player)
+                last_move = move
+            
+            draw_board() # 盤を再描画
+            
+            # 人間が置ける場所があるかチェック
+            if not game.get_valid_moves(human_player):
+                set_message("あなたはパスしました。AIの番です。")
+                # AIもパスならゲーム終了 (ai_valid_movesは上で計算済み)
+                if not ai_valid_moves:
+                    end_game()
+                else:
+                    # 0.5秒待ってから、もう一度AIのターン
+                    async def make_ai_move_again():
+                        await asyncio.sleep(0.5)
+                        ai_turn()
+                    asyncio.ensure_future(make_ai_move_again())
+            else:
+                set_message("あなたの番です。")
+                current_player = human_player
+                draw_board() # 人間のために置ける場所を表示
+
+
+        # 新しいゲームを始める関数
+        def new_game(*args, **kwargs):
+            global game, current_player, last_move, human_player, ai_player
+
+            # プレイヤーの色を設定
+            try:
+                selected_color = int(document.querySelector('input[name="player_color"]:checked').value)
+            except AttributeError: # 何も選択されていない場合(念のため)
+                selected_color = 1
+            
+            human_player = selected_color
+            ai_player = 3 - human_player
+
+            game = Board() # 新しい盤を作る
+            current_player = 1 # 常に黒(1)からスタート
+            last_move = None # 最後に置いた場所をリセット
+            
+            # AIが先手かどうかで最初のメッセージと動きを変える
+            if current_player == ai_player:
+                set_message("AIの番（黒）です。")
+                draw_board() # 先に盤を描画
+                # AIが先手の場合、AIのターンを開始
+                async def start_ai_move():
+                    await asyncio.sleep(0.5) # 少し待ってからAIが打つ
+                    ai_turn()
+                asyncio.ensure_future(start_ai_move())
+            else:
+                set_message("あなたの番（黒）です。")
+                draw_board() # 盤を描画
+
+        # ゲームが終了した時に呼ばれる関数
+        def end_game():
+            black_score, white_score = game.get_score()
+            if black_score > white_score:
+                set_message(f"ゲーム終了！ あなたの勝ちです！ スコア: 黒 {black_score} - 白 {white_score}")
+            elif white_score > black_score:
+                set_message(f"ゲーム終了！ AIの勝ちです！ スコア: 黒 {black_score} - 白 {white_score}")
+            else:
+                set_message(f"ゲーム終了！ 引き分けです！ スコア: 黒 {black_score} - 白 {white_score}")
+
+
+        # 「新しいゲーム」ボタンが押された時に new_game 関数を呼ぶように設定
+        new_game_button = document.getElementById("new-game-button")
+        new_game_button.addEventListener("click", create_proxy(new_game))
+
+        # 「コードを見る」ボタンの処理
+        def toggle_code(*args, **kwargs):
+            code_section = document.getElementById("code-section")
+            code_display = document.getElementById("code-display")
+            button = document.getElementById("show-code-button")
+            
+            if "visible" in code_section.className:
+                code_section.classList.remove("visible")
+                button.innerText = "👀 AIのコードを見る"
+            else:
+                code_section.classList.add("visible")
+                button.innerText = "🙈 コードを隠す"
+                
+                # AIの思考ロジック部分のコードを表示（教育用に抜粋）
+                sample_code = '''# === AIの思考ロジック（抜粋）===
+
+# AIが「どこに石を置くか」を決める部分
+class AIPlayer:
+    # 各マスの「価値」を数字で表した表
+    # 角（120点）が一番価値が高い！
+    EVAL_OPENING = [
+        [120, -20, 20,  5,  5, 20, -20, 120],
+        [-20, -40, -5, -5, -5, -5, -40, -20],
+        [ 20,  -5, 15,  3,  3, 15,  -5,  20],
+        [  5,  -5,  3,  3,  3,  3,  -5,   5],
+        ...
+    ]
+
+    # AIが次の手を決める関数
+    def get_move(self, board):
+        # 置ける場所を全部探す
+        valid_moves = board.get_valid_moves(self.player)
+        
+        # レベルによって戦略を変える
+        if self.level == 1:  # かんたん
+            # わざと悪い手を選ぶ
+            return self._get_worst_move_by_eval(valid_moves)
+        elif self.level == 3:  # むずかしい
+            # 一番良い手を選ぶ
+            return self._get_best_move_by_eval(valid_moves)
+
+    # 一番価値の高いマスを選ぶ
+    def _get_best_move_by_eval(self, valid_moves):
+        best_move = None
+        max_score = -999999
+        for move in valid_moves:
+            r, c = move
+            score = self.EVAL_OPENING[r][c]
+            if score > max_score:
+                max_score = score
+                best_move = move
+        return best_move
+
+# === ポイント ===
+# 🎯 AIは「評価表」を使って手を決めている
+# 🎯 角を取ると有利（120点）
+# 🎯 角の隣は危険（-20点、-40点）
+# 🎯 レベルによって「良い手」か「悪い手」かを選ぶ'''
+                
+                code_display.innerText = sample_code
+        
+        show_code_button = document.getElementById("show-code-button")
+        show_code_button.addEventListener("click", create_proxy(toggle_code))
+
+        # --- プログラミング体験モードの処理 ---
+        current_step = 1
+        custom_corner = 120
+        custom_next_corner = -20
+
+        def toggle_challenge(*args, **kwargs):
+            challenge_section = document.getElementById("challenge-section")
+            if "visible" in challenge_section.className:
+                challenge_section.classList.remove("visible")
+            else:
+                challenge_section.classList.add("visible")
+                document.getElementById("code-section").classList.remove("visible")
+                document.getElementById("show-code-button").innerText = "👀 AIのコードを見る"
+                update_step_display()
+
+        def close_challenge(*args, **kwargs):
+            document.getElementById("challenge-section").classList.remove("visible")
+
+        def update_step_display():
+            global current_step
+            # すべてのステップを非表示
+            for i in range(1, 4):
+                step_el = document.querySelector(f'.step[data-step="{i}"]')
+                if step_el:
+                    step_el.classList.remove("active")
+            
+            # 現在のステップを表示
+            current_step_el = document.querySelector(f'.step[data-step="{current_step}"]')
+            if current_step_el:
+                current_step_el.classList.add("active")
+            
+            # インジケータ更新
+            document.getElementById("step-indicator").innerText = f"{current_step} / 3"
+            
+            # ボタンの有効/無効
+            document.getElementById("prev-step").disabled = (current_step == 1)
+            document.getElementById("next-step").disabled = (current_step == 3)
+            
+            # ステップ3なら評価表プレビューを更新
+            if current_step == 3:
+                update_eval_preview()
+
+        def next_step(*args, **kwargs):
+            global current_step, custom_corner, custom_next_corner
+            
+            # 入力値を保存
+            if current_step == 1:
+                corner_input = document.getElementById("corner-value")
+                if corner_input.value:
+                    custom_corner = int(corner_input.value)
+            elif current_step == 2:
+                next_corner_input = document.getElementById("next-corner-value")
+                if next_corner_input.value:
+                    custom_next_corner = int(next_corner_input.value)
+            
+            if current_step < 3:
+                current_step += 1
+                update_step_display()
+
+        def prev_step(*args, **kwargs):
+            global current_step
+            if current_step > 1:
+                current_step -= 1
+                update_step_display()
+
+        def update_eval_preview():
+            global custom_corner, custom_next_corner
+            preview = document.getElementById("eval-preview")
+            preview.innerHTML = ""
+            
+            # 簡易評価表を生成
+            eval_table = [
+                [custom_corner, custom_next_corner, 20,  5,  5, 20, custom_next_corner, custom_corner],
+                [custom_next_corner, custom_next_corner - 20, -5, -5, -5, -5, custom_next_corner - 20, custom_next_corner],
+                [ 20,  -5, 15,  3,  3, 15,  -5,  20],
+                [  5,  -5,  3,  3,  3,  3,  -5,   5],
+                [  5,  -5,  3,  3,  3,  3,  -5,   5],
+                [ 20,  -5, 15,  3,  3, 15,  -5,  20],
+                [custom_next_corner, custom_next_corner - 20, -5, -5, -5, -5, custom_next_corner - 20, custom_next_corner],
+                [custom_corner, custom_next_corner, 20,  5,  5, 20, custom_next_corner, custom_corner]
+            ]
+            
+            for r in range(8):
+                for c in range(8):
+                    cell = document.createElement("div")
+                    cell.className = "eval-cell"
+                    cell.innerText = str(eval_table[r][c])
+                    
+                    # 角は特別な色
+                    if (r, c) in [(0,0), (0,7), (7,0), (7,7)]:
+                        cell.classList.add("corner")
+                    # 角の隣は危険色
+                    elif eval_table[r][c] < 0:
+                        cell.classList.add("danger")
+                    
+                    preview.appendChild(cell)
+
+        def apply_custom_ai(*args, **kwargs):
+            global custom_corner, custom_next_corner
+            
+            # カスタム評価表をAIPlayerに適用
+            AIPlayer.EVAL_OPENING = [
+                [custom_corner, custom_next_corner, 20,  5,  5, 20, custom_next_corner, custom_corner],
+                [custom_next_corner, custom_next_corner - 20, -5, -5, -5, -5, custom_next_corner - 20, custom_next_corner],
+                [ 20,  -5, 15,  3,  3, 15,  -5,  20],
+                [  5,  -5,  3,  3,  3,  3,  -5,   5],
+                [  5,  -5,  3,  3,  3,  3,  -5,   5],
+                [ 20,  -5, 15,  3,  3, 15,  -5,  20],
+                [custom_next_corner, custom_next_corner - 20, -5, -5, -5, -5, custom_next_corner - 20, custom_next_corner],
+                [custom_corner, custom_next_corner, 20,  5,  5, 20, custom_next_corner, custom_corner]
+            ]
+            
+            AIPlayer.EVAL_MIDGAME = AIPlayer.EVAL_OPENING
+            AIPlayer.EVAL_ENDGAME = AIPlayer.EVAL_OPENING
+            
+            # 体験モードを閉じてゲームを開始
+            document.getElementById("challenge-section").classList.remove("visible")
+            document.getElementById("ai-level").value = "3"  # むずかしいモードで
+            set_message(f"🎉 カスタムAI完成！ 角={custom_corner}, 角の隣={custom_next_corner}")
+            new_game()
+
+        # イベントリスナーの設定
+        challenge_button = document.getElementById("challenge-mode-button")
+        challenge_button.addEventListener("click", create_proxy(toggle_challenge))
+        
+        close_btn = document.getElementById("close-challenge")
+        close_btn.addEventListener("click", create_proxy(close_challenge))
+        
+        next_btn = document.getElementById("next-step")
+        next_btn.addEventListener("click", create_proxy(next_step))
+        
+        prev_btn = document.getElementById("prev-step")
+        prev_btn.addEventListener("click", create_proxy(prev_step))
+        
+        apply_btn = document.getElementById("apply-custom-ai")
+        apply_btn.addEventListener("click", create_proxy(apply_custom_ai))
+
+        # 最初にウェブページが開かれた時に、新しいゲームを始める
+        new_game()
+
+    </py-script>
+</body>
+</html>

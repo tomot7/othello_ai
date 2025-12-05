@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>🎓 UI作成体験 - リバーシを作ろう！</title>
+    <meta charset="utf-8">
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', 'Hiragino Sans', sans-serif;
+            margin: 0; padding: 0;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh; color: #e2e8f0;
+        }
+        .container { display: flex; height: 100vh; }
+        .editor-panel {
+            width: 50%; padding: 20px; display: flex; flex-direction: column;
+            border-right: 2px solid #4a5568;
+        }
+        .editor-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .editor-header h2 { margin: 0; color: #fbd38d; }
+        .step-badge {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 8px 16px; border-radius: 20px; font-weight: bold;
+        }
+        .instruction-box {
+            background: #2d3748; border-left: 4px solid #48bb78;
+            padding: 15px; border-radius: 0 10px 10px 0; margin-bottom: 15px;
+        }
+        .instruction-box h3 { margin: 0 0 10px 0; color: #48bb78; }
+        .instruction-box p { margin: 5px 0; line-height: 1.6; }
+        .hint-box {
+            background: #fef3c7; color: #744210; padding: 12px 15px;
+            border-radius: 8px; margin-top: 10px; font-weight: bold;
+        }
+        .hint-box .label { color: #92400e; font-size: 0.9em; }
+        .hint-box .answer { font-size: 1.1em; color: #b45309; font-family: 'Consolas', monospace; }
+        .code-editor {
+            flex: 1; background: #1a202c; border-radius: 10px; overflow: hidden;
+            display: flex; flex-direction: column;
+        }
+        .editor-tabs { background: #2d3748; padding: 10px; display: flex; gap: 5px; }
+        .tab {
+            padding: 8px 16px; border-radius: 5px;
+            background: transparent; color: #a0aec0; border: none; font-size: 0.9em;
+        }
+        .tab.active { background: #4a5568; color: #fff; }
+        .tab.disabled { opacity: 0.4; }
+        .code-area { flex: 1; display: flex; }
+        .line-numbers {
+            background: #2d3748; padding: 15px 10px; text-align: right; color: #718096;
+            font-family: 'Consolas', 'Monaco', monospace; font-size: 14px; line-height: 1.5; user-select: none;
+        }
+        .code-content {
+            flex: 1; padding: 15px; font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 14px; line-height: 1.5; overflow-y: auto;
+        }
+        .code-content .tag { color: #f687b3; }
+        .code-content .attr { color: #68d391; }
+        .code-content .value { color: #fbd38d; }
+        .code-content .comment { color: #718096; }
+        .code-content .keyword { color: #b794f4; }
+        .blank-input {
+            background: #4a5568; border: 2px dashed #667eea; color: #fbd38d;
+            padding: 2px 8px; border-radius: 4px; font-family: inherit;
+            font-size: inherit; width: 100px; text-align: center;
+        }
+        .blank-input:focus { outline: none; border-color: #48bb78; box-shadow: 0 0 10px rgba(72, 187, 120, 0.5); }
+        .blank-input.correct { border-color: #48bb78; background: #276749; }
+        .blank-input.incorrect { border-color: #fc8181; background: #742a2a; }
+        .preview-panel { width: 50%; padding: 20px; display: flex; flex-direction: column; }
+        .preview-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .preview-header h2 { margin: 0; color: #63b3ed; }
+        .preview-frame {
+            flex: 1; background: white; border-radius: 10px; overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+        .preview-content { width: 100%; height: 100%; overflow: auto; }
+        .navigation {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 15px; background: #2d3748; border-radius: 10px; margin-top: 15px;
+        }
+        .nav-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white; border: none; padding: 12px 24px; border-radius: 25px;
+            font-size: 1em; font-weight: bold; cursor: pointer;
+        }
+        .nav-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .nav-btn.check { background: linear-gradient(135deg, #48bb78 0%, #38a169 100%); }
+        .nav-btn.complete { background: linear-gradient(135deg, #f6ad55 0%, #ed8936 100%); }
+        .progress-bar { flex: 1; margin: 0 20px; height: 10px; background: #4a5568; border-radius: 5px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(135deg, #48bb78 0%, #38a169 100%); transition: width 0.3s ease; }
+        .step-info { text-align: center; color: #a0aec0; }
+        .message { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); padding: 15px 30px; border-radius: 10px; font-weight: bold; z-index: 1000; display: none; }
+        .message.success { background: #48bb78; color: white; display: block; }
+        .message.error { background: #fc8181; color: white; display: block; }
+        .completion-screen { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); justify-content: center; align-items: center; z-index: 2000; }
+        .completion-screen.visible { display: flex; }
+        .completion-box { background: white; padding: 40px; border-radius: 20px; text-align: center; color: #2d3748; max-width: 500px; }
+        .completion-box h1 { color: #48bb78; margin-bottom: 20px; }
+        .file-indicator { font-size: 0.85em; color: #a0aec0; margin-bottom: 5px; }
+        .back-btn {
+            background: #4a5568; color: white; border: none; padding: 8px 16px;
+            border-radius: 20px; cursor: pointer; font-size: 0.9em;
+        }
+        .back-btn:hover { background: #667eea; }
+    </style>
+</head>
+<body>
+    <div id="message" class="message"></div>
+    <div class="container">
+        <div class="editor-panel">
+            <div class="editor-header">
+                <a href="../index.html" style="text-decoration: none;">
+                    <button class="back-btn">← ゲームに戻る</button>
+                </a>
+                <h2>📝 コードエディタ</h2>
+                <span class="step-badge" id="step-badge">ステップ 1/10</span>
+            </div>
+            <div class="instruction-box" id="instruction"></div>
+            <div class="code-editor">
+                <div class="editor-tabs">
+                    <button class="tab" data-tab="html" id="tab-html">index.html</button>
+                    <button class="tab" data-tab="css" id="tab-css">style.css</button>
+                </div>
+                <div class="file-indicator" id="file-indicator">📄 編集中: index.html</div>
+                <div class="code-area">
+                    <div class="line-numbers" id="line-numbers"></div>
+                    <div class="code-content" id="code-content"></div>
+                </div>
+            </div>
+            <div class="navigation">
+                <button class="nav-btn" id="prev-btn" disabled>◀ 前へ</button>
+                <div style="flex: 1; text-align: center;">
+                    <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width: 10%;"></div></div>
+                    <div class="step-info" id="step-info">ステップ 1 / 10</div>
+                </div>
+                <button class="nav-btn check" id="check-btn">✓ 確認する</button>
+                <button class="nav-btn" id="next-btn" style="display:none;">次へ ▶</button>
+            </div>
+        </div>
+        <div class="preview-panel">
+            <div class="preview-header">
+                <h2>👁️ プレビュー</h2>
+                <span style="color: #a0aec0;">実際のゲーム画面と同じUIを作ろう</span>
+            </div>
+            <div class="preview-frame">
+                <div class="preview-content" id="preview-content"></div>
+            </div>
+        </div>
+    </div>
+    <div class="completion-screen" id="completion-screen">
+        <div class="completion-box">
+            <h1>🎉 おめでとう！</h1>
+            <p>実際のゲームと同じUIが完成しました！</p>
+            <br>
+            <button class="nav-btn complete" onclick="window.location.href='../index.html'">完成版で遊ぶ</button>
+        </div>
+    </div>
+
+    <script>
+        const steps = [
+            { title: "ステップ1: ページタイトル", 
+              desc: "titleタグでブラウザタブの名前を設定しよう！",
+              hint: "AIリバーシ",
+              tab: "html",
+              code: '<span class="tag">&lt;!DOCTYPE html&gt;</span>\n<span class="tag">&lt;html&gt;</span>\n<span class="tag">&lt;head&gt;</span>\n    <span class="tag">&lt;title&gt;</span><input type="text" class="blank-input" id="blank1" placeholder="タイトル" style="width:130px;"><span class="tag">&lt;/title&gt;</span>\n<span class="tag">&lt;/head&gt;</span>',
+              answers: { blank1: "🎮 AIリバーシ" }, acceptAlso: { blank1: ["AIリバーシ", "リバーシ"] },
+              getConfig: (v) => ({ title: v.blank1 || '???' }) },
+            { title: "ステップ2: ヘッダー作成", 
+              desc: "h1タグでゲームタイトルを大きく表示！",
+              hint: "1つ目: h1 / 2つ目: AIリバーシ",
+              tab: "html",
+              code: '<span class="tag">&lt;div</span> <span class="attr">class</span>=<span class="value">"header"</span><span class="tag">&gt;</span>\n    <span class="tag">&lt;</span><input type="text" class="blank-input" id="blank1" placeholder="?" style="width:30px;"><span class="tag">&gt;</span><input type="text" class="blank-input" id="blank2" placeholder="タイトル" style="width:120px;"><span class="tag">&lt;/h1&gt;</span>\n    <span class="tag">&lt;p</span> <span class="attr">class</span>=<span class="value">"subtitle"</span><span class="tag">&gt;</span>Python × AI プログラミング体験<span class="tag">&lt;/p&gt;</span>\n<span class="tag">&lt;/div&gt;</span>',
+              answers: { blank1: "h1", blank2: "🎮 AIリバーシ" }, acceptAlso: { blank2: ["AIリバーシ"] },
+              getConfig: (v) => ({ header: true, h1: v.blank2 || '???' }) },
+            { title: "ステップ3: ボタン作成", 
+              desc: "buttonタグでゲーム開始ボタンを作ろう！",
+              hint: "新しいゲーム",
+              tab: "html",
+              code: '<span class="tag">&lt;div</span> <span class="attr">class</span>=<span class="value">"game-container"</span><span class="tag">&gt;</span>\n    <span class="tag">&lt;div</span> <span class="attr">id</span>=<span class="value">"controls"</span><span class="tag">&gt;</span>\n        <span class="tag">&lt;button&gt;</span><input type="text" class="blank-input" id="blank1" placeholder="ボタン文字" style="width:140px;"><span class="tag">&lt;/button&gt;</span>\n    <span class="tag">&lt;/div&gt;</span>\n<span class="tag">&lt;/div&gt;</span>',
+              answers: { blank1: "🔄 新しいゲーム" }, acceptAlso: { blank1: ["新しいゲーム"] },
+              getConfig: (v) => ({ header: true, container: true, button: v.blank1 || '???' }) },
+            { title: "ステップ4: 盤面とメッセージ", 
+              desc: "盤面・メッセージ・スコア用のdivを追加！",
+              hint: "1つ目: board　2つ目: message　3つ目: score",
+              tab: "html",
+              code: '<span class="comment">&lt;!-- game-container内 --&gt;</span>\n<span class="tag">&lt;div</span> <span class="attr">id</span>=<span class="value">"</span><input type="text" class="blank-input" id="blank1" placeholder="?" style="width:60px;"><span class="value">"</span><span class="tag">&gt;&lt;/div&gt;</span>\n<span class="tag">&lt;div</span> <span class="attr">id</span>=<span class="value">"</span><input type="text" class="blank-input" id="blank2" placeholder="?" style="width:75px;"><span class="value">"</span><span class="tag">&gt;&lt;/div&gt;</span>\n<span class="tag">&lt;div</span> <span class="attr">id</span>=<span class="value">"</span><input type="text" class="blank-input" id="blank3" placeholder="?" style="width:55px;"><span class="value">"</span><span class="tag">&gt;&lt;/div&gt;</span>',
+              answers: { blank1: "board", blank2: "message", blank3: "score" },
+              getConfig: (v) => ({ header: true, container: true, button: "🔄 新しいゲーム", board: v.blank1==="board", message: v.blank2==="message", score: v.blank3==="score" }) },
+            { title: "ステップ5: 背景グラデーション", 
+              desc: "CSSで紫〜青のグラデーション背景を設定！",
+              hint: "#667eea",
+              tab: "css",
+              code: '<span class="keyword">body</span> {\n    <span class="attr">background</span>: <span class="value">linear-gradient(135deg, </span><input type="text" class="blank-input" id="blank1" placeholder="色" style="width:80px;"><span class="value"> 0%, #764ba2 100%)</span>;\n    <span class="attr">min-height</span>: <span class="value">100vh</span>;\n    <span class="attr">display</span>: <span class="value">flex</span>;\n    <span class="attr">flex-direction</span>: <span class="value">column</span>;\n    <span class="attr">align-items</span>: <span class="value">center</span>;\n}',
+              answers: { blank1: "#667eea" },
+              getConfig: (v) => ({ header: true, container: true, button: "🔄 新しいゲーム", board: true, message: true, score: true, bgColor: v.blank1 }) },
+            { title: "ステップ6: 8×8グリッド", 
+              desc: "CSS Gridで盤面を8×8のマス目に！",
+              hint: "両方とも: 8",
+              tab: "css",
+              code: '<span class="keyword">#board</span> {\n    <span class="attr">display</span>: <span class="value">grid</span>;\n    <span class="attr">grid-template-columns</span>: <span class="value">repeat(</span><input type="text" class="blank-input" id="blank1" placeholder="?" style="width:25px;"><span class="value">, 50px)</span>;\n    <span class="attr">grid-template-rows</span>: <span class="value">repeat(</span><input type="text" class="blank-input" id="blank2" placeholder="?" style="width:25px;"><span class="value">, 50px)</span>;\n    <span class="attr">border</span>: <span class="value">3px solid #2d3748</span>;\n    <span class="attr">border-radius</span>: <span class="value">8px</span>;\n}',
+              answers: { blank1: "8", blank2: "8" },
+              getConfig: (v) => ({ header: true, container: true, button: "🔄 新しいゲーム", board: true, message: true, score: true, bgColor: "#667eea", gridSize: parseInt(v.blank1)||4 }) },
+            { title: "ステップ7: マスを緑色に", 
+              desc: "各マスを鮮やかな緑色に設定！",
+              hint: "#22c55e",
+              tab: "css",
+              code: '<span class="keyword">.cell</span> {\n    <span class="attr">width</span>: <span class="value">50px</span>;\n    <span class="attr">height</span>: <span class="value">50px</span>;\n    <span class="attr">background-color</span>: <input type="text" class="blank-input" id="blank1" placeholder="色" style="width:80px;">;\n    <span class="attr">border</span>: <span class="value">1px solid #166534</span>;\n    <span class="attr">display</span>: <span class="value">flex</span>;\n    <span class="attr">justify-content</span>: <span class="value">center</span>;\n    <span class="attr">align-items</span>: <span class="value">center</span>;\n}',
+              answers: { blank1: "#22c55e" }, acceptAlso: { blank1: ["green"] },
+              getConfig: (v) => ({ header: true, container: true, button: "🔄 新しいゲーム", board: true, message: true, score: true, bgColor: "#667eea", gridSize: 8, cellColor: v.blank1 }) },
+            { title: "ステップ8: 石を丸く", 
+              desc: "border-radiusで石を円形に！",
+              hint: "50%",
+              tab: "css",
+              code: '<span class="keyword">.piece</span> {\n    <span class="attr">width</span>: <span class="value">40px</span>;\n    <span class="attr">height</span>: <span class="value">40px</span>;\n    <span class="attr">border-radius</span>: <input type="text" class="blank-input" id="blank1" placeholder="?" style="width:50px;">;\n    <span class="attr">box-shadow</span>: <span class="value">2px 2px 5px rgba(0,0,0,0.3)</span>;\n}\n<span class="keyword">.black</span> { <span class="attr">background</span>: <span class="value">radial-gradient(circle at 30% 30%, #4a4a4a, #000)</span>; }\n<span class="keyword">.white</span> { <span class="attr">background</span>: <span class="value">radial-gradient(circle at 30% 30%, #fff, #ccc)</span>; }',
+              answers: { blank1: "50%" },
+              getConfig: (v) => ({ header: true, container: true, button: "🔄 新しいゲーム", board: true, message: true, score: true, bgColor: "#667eea", gridSize: 8, cellColor: "#22c55e", pieceRadius: v.blank1 }) },
+            { title: "ステップ9: ボタンをグラデーションに", 
+              desc: "ボタンも紫のグラデーションに！",
+              hint: "#667eea",
+              tab: "css",
+              code: '<span class="keyword">button</span> {\n    <span class="attr">background</span>: <span class="value">linear-gradient(135deg, </span><input type="text" class="blank-input" id="blank1" placeholder="色" style="width:80px;"><span class="value"> 0%, #764ba2 100%)</span>;\n    <span class="attr">color</span>: <span class="value">white</span>;\n    <span class="attr">border</span>: <span class="value">none</span>;\n    <span class="attr">padding</span>: <span class="value">12px 24px</span>;\n    <span class="attr">border-radius</span>: <span class="value">25px</span>;\n    <span class="attr">font-weight</span>: <span class="value">bold</span>;\n}',
+              answers: { blank1: "#667eea" },
+              getConfig: (v) => ({ header: true, container: true, button: "🔄 新しいゲーム", board: true, message: true, score: true, bgColor: "#667eea", gridSize: 8, cellColor: "#22c55e", pieceRadius: "50%", btnColor: v.blank1 }) },
+            { title: "ステップ10: コンテナ完成！", 
+              desc: "白いコンテナに角丸と影をつけて完成！",
+              hint: "20px",
+              tab: "css",
+              code: '<span class="keyword">.game-container</span> {\n    <span class="attr">background</span>: <span class="value">white</span>;\n    <span class="attr">border-radius</span>: <input type="text" class="blank-input" id="blank1" placeholder="?" style="width:50px;">;\n    <span class="attr">padding</span>: <span class="value">25px</span>;\n    <span class="attr">box-shadow</span>: <span class="value">0 10px 40px rgba(0,0,0,0.3)</span>;\n}',
+              answers: { blank1: "20px" },
+              getConfig: (v) => ({ header: true, container: true, button: "🔄 新しいゲーム", board: true, message: true, score: true, bgColor: "#667eea", gridSize: 8, cellColor: "#22c55e", pieceRadius: "50%", btnColor: "#667eea", containerRadius: v.blank1, complete: true }) }
+        ];
+
+        function generatePreview(c) {
+            const bg = c.bgColor || '#ddd', grid = c.gridSize || 0, cell = c.cellColor || '#ccc';
+            const radius = c.pieceRadius || '0', btn = c.btnColor || '#ccc', cRadius = c.containerRadius || '0';
+            const initBoard = [[0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0],[0,0,0,1,2,0,0,0],[0,0,0,2,1,0,0,0],[0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0]];
+            let boardHtml = '';
+            if (c.board && grid > 0) {
+                let cells = '';
+                for (let r = 0; r < grid; r++) {
+                    for (let col = 0; col < grid; col++) {
+                        let piece = '';
+                        if (grid === 8 && initBoard[r][col] === 1)
+                            piece = '<div style="width:32px;height:32px;border-radius:'+radius+';background:radial-gradient(circle at 30% 30%,#4a4a4a,#000);box-shadow:2px 2px 5px rgba(0,0,0,0.3);"></div>';
+                        else if (grid === 8 && initBoard[r][col] === 2)
+                            piece = '<div style="width:32px;height:32px;border-radius:'+radius+';background:radial-gradient(circle at 30% 30%,#fff,#ccc);box-shadow:2px 2px 5px rgba(0,0,0,0.3);"></div>';
+                        cells += '<div style="width:40px;height:40px;background:'+cell+';border:1px solid #166534;display:flex;justify-content:center;align-items:center;">'+piece+'</div>';
+                    }
+                }
+                boardHtml = '<div style="display:inline-grid;grid-template-columns:repeat('+grid+',40px);border:3px solid #2d3748;border-radius:8px;overflow:hidden;">'+cells+'</div>';
+            } else if (c.board) {
+                boardHtml = '<div style="width:200px;height:200px;border:2px dashed #ccc;margin:10px auto;display:flex;justify-content:center;align-items:center;color:#999;">盤面</div>';
+            }
+            const btnStyle = btn !== '#ccc' ? 'background:linear-gradient(135deg,'+btn+' 0%,#764ba2 100%);color:white;border:none;padding:10px 20px;border-radius:25px;font-weight:bold;' : 'padding:8px 16px;';
+            let html = '<div style="background:'+(bg.startsWith('#')?'linear-gradient(135deg,'+bg+' 0%,#764ba2 100%)':bg)+';min-height:400px;padding:15px;font-family:Segoe UI,sans-serif;">';
+            if (c.header) html += '<div style="text-align:center;color:white;margin-bottom:10px;"><h1 style="font-size:1.8em;margin:0;text-shadow:2px 2px 4px rgba(0,0,0,0.3);">'+(c.h1||'🎮 AIリバーシ')+'</h1><p style="font-size:0.9em;opacity:0.9;margin:5px 0;">Python × AI プログラミング体験</p></div>';
+            if (c.container) {
+                html += '<div style="background:white;border-radius:'+cRadius+';padding:15px;box-shadow:0 10px 40px rgba(0,0,0,0.3);text-align:center;">';
+                html += '<div style="margin-bottom:10px;"><button style="'+btnStyle+'">'+(c.button||'???')+'</button></div>';
+                html += boardHtml;
+                if (c.message) html += '<div style="margin-top:10px;font-size:1.1em;font-weight:bold;color:#2d3748;">あなたの番です</div>';
+                if (c.score) html += '<div style="margin-top:5px;color:#4a5568;">黒: 2 - 白: 2</div>';
+                if (c.complete) html += '<div style="margin-top:10px;color:#48bb78;font-weight:bold;">🎉 完成！</div>';
+                html += '</div>';
+            } else {
+                html += '<div style="text-align:center;color:white;padding:50px;"><p>タイトル: '+(c.title||'???')+'</p></div>';
+            }
+            html += '</div>';
+            return html;
+        }
+
+        let currentStep = 0;
+        
+        function init() {
+            loadStep(0);
+        }
+        
+        function loadStep(i) {
+            currentStep = i;
+            const s = steps[i], total = steps.length;
+            document.getElementById('step-badge').textContent = 'ステップ '+(i+1)+'/'+total;
+            document.getElementById('step-info').textContent = 'ステップ '+(i+1)+' / '+total;
+            document.getElementById('progress-fill').style.width = (((i+1)/total)*100)+'%';
+            
+            // 説明とヒントを常に表示
+            document.getElementById('instruction').innerHTML = 
+                '<h3>'+s.title+'</h3>' +
+                '<p>'+s.desc+'</p>' +
+                '<div class="hint-box"><span class="label">💡 入力する内容:</span><br><span class="answer">'+s.hint+'</span></div>';
+            
+            // タブの表示更新（現在のファイルを強調）
+            const htmlTab = document.getElementById('tab-html');
+            const cssTab = document.getElementById('tab-css');
+            htmlTab.classList.remove('active', 'disabled');
+            cssTab.classList.remove('active', 'disabled');
+            
+            if (s.tab === 'html') {
+                htmlTab.classList.add('active');
+                cssTab.classList.add('disabled');
+                document.getElementById('file-indicator').textContent = '📄 編集中: index.html';
+            } else {
+                cssTab.classList.add('active');
+                htmlTab.classList.add('disabled');
+                document.getElementById('file-indicator').textContent = '🎨 編集中: style.css';
+            }
+            
+            document.getElementById('code-content').innerHTML = s.code;
+            document.getElementById('line-numbers').innerHTML = Array.from({length:s.code.split('\n').length},(_,j)=>j+1).join('<br>');
+            document.querySelectorAll('.blank-input').forEach(inp=>inp.addEventListener('input',updatePreview));
+            document.getElementById('prev-btn').disabled = i === 0;
+            document.getElementById('check-btn').style.display = 'inline-block';
+            document.getElementById('next-btn').style.display = 'none';
+            updatePreview();
+        }
+        
+        function updatePreview() {
+            const s = steps[currentStep], v = {};
+            document.querySelectorAll('.blank-input').forEach(inp=>{v[inp.id]=inp.value;});
+            document.getElementById('preview-content').innerHTML = generatePreview(s.getConfig(v));
+        }
+        
+        function checkAnswers() {
+            const s = steps[currentStep]; let ok = true;
+            document.querySelectorAll('.blank-input').forEach(inp=>{
+                const correct = s.answers[inp.id], val = inp.value.trim().toLowerCase(), corVal = correct.toLowerCase();
+                let match = val === corVal;
+                if (!match && s.acceptAlso && s.acceptAlso[inp.id]) match = s.acceptAlso[inp.id].some(a=>val===a.toLowerCase());
+                if (match) { inp.classList.remove('incorrect'); inp.classList.add('correct'); }
+                else { inp.classList.remove('correct'); inp.classList.add('incorrect'); ok = false; }
+            });
+            if (ok) { showMessage('🎉 正解！',true); document.getElementById('check-btn').style.display='none'; document.getElementById('next-btn').style.display='inline-block'; }
+            else showMessage('😅 惜しい！',false);
+        }
+        
+        function nextStep() { 
+            if (currentStep < steps.length-1) { 
+                loadStep(currentStep + 1); 
+            } else {
+                document.getElementById('completion-screen').classList.add('visible'); 
+            }
+        }
+        
+        function prevStep() { 
+            if (currentStep > 0) { 
+                loadStep(currentStep - 1); 
+            } 
+        }
+        
+        function showMessage(t,ok) { 
+            const m=document.getElementById('message'); 
+            m.textContent=t; 
+            m.className='message '+(ok?'success':'error'); 
+            setTimeout(()=>{m.className='message';},3000); 
+        }
+        
+        document.getElementById('check-btn').addEventListener('click',checkAnswers);
+        document.getElementById('next-btn').addEventListener('click',nextStep);
+        document.getElementById('prev-btn').addEventListener('click',prevStep);
+        init();
+    </script>
+</body>
+</html>
