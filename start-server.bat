@@ -1,3 +1,3 @@
 @echo off
-.\node_modules\.bin\http-server -p 8080
+node node_modules/http-server/bin/http-server -p 8080
 pause
